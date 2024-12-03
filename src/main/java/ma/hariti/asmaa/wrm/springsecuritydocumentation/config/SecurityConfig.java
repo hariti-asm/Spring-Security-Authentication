@@ -34,23 +34,26 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/h2-console/**", "/public/**", "/login.html", "/error").permitAll() // Allow access to H2 console
+                        .requestMatchers("/h2-console/**", "/public/**", "/error").permitAll()
                         .anyRequest().authenticated())
                 .formLogin(form -> form
-                        .loginPage("/login.html")
                         .loginProcessingUrl("/login")
                         .defaultSuccessUrl("/private/hello")
                         .failureUrl("/login.html?error=true")
                         .permitAll())
                 .logout(logout -> logout
                         .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login.html")
+                        .logoutSuccessUrl("/login")
                         .permitAll())
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/h2-console/**")
+                )
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
+
         return http.build();
     }
+
 
 
     @Bean
