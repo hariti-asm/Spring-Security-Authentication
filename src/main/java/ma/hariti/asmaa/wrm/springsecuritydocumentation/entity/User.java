@@ -17,5 +17,6 @@ public class User {
     private String username;
     @Column(nullable = false)
     private String password;
-    private boolean enabled = true;
+@Enumerated(EnumType.STRING)
+    private UserRole role = UserRole.ROLE_USER;
 }
