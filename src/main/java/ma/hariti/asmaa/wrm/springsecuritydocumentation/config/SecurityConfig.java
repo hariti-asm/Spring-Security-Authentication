@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -34,9 +33,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable
-                )
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/users/register", "/h2-console/**", "/api/public/**", "/error").permitAll()
@@ -44,7 +41,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/myLoans", "/api/users/myCards", "/api/users/myAccount", "/api/users/myBalance").hasRole("USER")
                         .anyRequest().authenticated()
                 )
-
                 .formLogin(form -> form
                         .loginProcessingUrl("/login")
                         .defaultSuccessUrl("/private/hello")
@@ -54,9 +50,6 @@ public class SecurityConfig {
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login")
                         .permitAll())
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/h2-console/**")
-                )
                 .httpBasic(Customizer.withDefaults())
                 .userDetailsService(customUserDetailService)
                 .exceptionHandling(ex -> ex
@@ -65,7 +58,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
     @Bean
     public UserDetailsService userDetailsService() {
         JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
