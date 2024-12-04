@@ -5,20 +5,19 @@ import ma.hariti.asmaa.wrm.springsecuritydocumentation.repository.UserRepository
 import ma.hariti.asmaa.wrm.springsecuritydocumentation.service.CustomUserDetailService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 import javax.sql.DataSource;
 
@@ -28,66 +27,52 @@ import javax.sql.DataSource;
 public class SecurityConfig {
     private final UserRepository userRepository;
     private final DataSource dataSource;
-    private final CustomUserDetailService customUserDetailService;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .headers(headers -> headers.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/register", "/h2-console/**", "/api/public/**", "/error").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/myLoans", "/api/users/myCards", "/api/users/myAccount", "/api/users/myBalance").hasRole("USER")
+                        .requestMatchers("/api/register", "/api/users/login", "/h2-console/**", "/api/public/**", "/error").permitAll()
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/**").hasAuthority("ROLE_USER")
                         .anyRequest().authenticated()
                 )
-                .formLogin(form -> form
-                        .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/private/hello")
-                        .failureUrl("/login?error=true")
-                        .permitAll())
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login")
-                        .permitAll())
-                .httpBasic(Customizer.withDefaults())
-                .userDetailsService(customUserDetailService)
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-                );
+                .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }
+
+
     @Bean
     public UserDetailsService userDetailsService() {
-        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
+        return new JdbcUserDetailsManager(dataSource) {
+            @Override
+            public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+                ma.hariti.asmaa.wrm.springsecuritydocumentation.entity.User user =
+                        userRepository.findByUsername(username)
+                                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        InMemoryUserDetailsManager inMemoryUserDetailsManager = new InMemoryUserDetailsManager();
-
-        UserDetails memoryUser = User.builder()
-                .username("memoryuser")
-                .password(passwordEncoder().encode("memorypassword"))
-                .roles("USER")
-                .build();
-        inMemoryUserDetailsManager.createUser(memoryUser);
-
-        userRepository.findAll().forEach(user -> {
-            UserDetails dbUser = User.builder()
-                    .username(user.getUsername())
-                    .password(user.getPassword())
-                    .roles("USER")
-                    .build();
-            if (!jdbcUserDetailsManager.userExists(user.getUsername())) {
-                jdbcUserDetailsManager.createUser(dbUser);
+                return User.builder()
+                        .username(user.getUsername())
+                        .password(user.getPassword())
+                        .disabled(false)
+                        .roles("USER")
+                        .build();
             }
-        });
-
-        return jdbcUserDetailsManager;
+        };
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService());
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
     }
 }
