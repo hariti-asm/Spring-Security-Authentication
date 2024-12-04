@@ -13,10 +13,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class DataInitializer {
     private final UserRepository userRepository;
     final private PasswordEncoder passwordEncoder;
+
     @Bean
     public CommandLineRunner init() {
         return args -> {
-            if(userRepository.count() == 0){
+            if (userRepository.count() == 0) {
                 User dbUser = new User();
                 dbUser.setUsername("dbuser");
                 dbUser.setPassword(passwordEncoder.encode("password"));
